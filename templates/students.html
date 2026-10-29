@@ -1,0 +1,89 @@
+
+{% extends "base.html" %}
+
+{% block title %}Students | Student Performance Analyser{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Student Records</h1>
+    <p>View student information loaded from your dataset.</p>
+    <button onclick="loadStudents()">Load Student Records</button>
+    <p id="message"></p>
+</div>
+
+<div class="card" style="overflow-x:auto;">
+    <table id="studentsTable">
+        <thead>
+            <tr>
+                <th>Student ID</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Study Hours/Day</th>
+                <th>Attendance (%)</th>
+                <th>Previous Score</th>
+                <th>Final Score</th>
+                <th>Academic Risk</th>
+            </tr>
+        </thead>
+        <tbody id="studentsBody">
+            <tr>
+                <td colspan="8">Click "Load Student Records" to view the data.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+async function loadStudents() {
+    const body = document.getElementById("studentsBody");
+    const message = document.getElementById("message");
+
+    body.innerHTML = "<tr><td colspan='8'>Loading records...</td></tr>";
+    message.textContent = "";
+
+    try {
+        const response = await fetch("/api/students");
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not load student records.");
+        }
+
+        const students = Array.isArray(data) ? data : (data.students || []);
+
+        if (students.length === 0) {
+            body.innerHTML = "<tr><td colspan='8'>No student records found.</td></tr>";
+            return;
+        }
+
+        body.innerHTML = "";
+
+        students.forEach(student => {
+            const row = document.createElement("tr");
+
+            [
+                student.student_id,
+                student.age,
+                student.gender,
+                student.study_hours_per_day,
+                student.attendance_percentage,
+                student.previous_score,
+                student.final_score,
+                student.academic_risk
+            ].forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "-";
+                row.appendChild(cell);
+            });
+
+            body.appendChild(row);
+        });
+
+        message.textContent = "Loaded " + students.length + " student record(s).";
+    } catch (error) {
+        body.innerHTML = "";
+        message.textContent = "Error: " + error.message;
+    }
+}
+</script>
+{% endblock %}

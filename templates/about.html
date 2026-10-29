@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}About project{% endblock %}
+{% block breadcrumb %}About project{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">PROJECT GUIDE</p><h1>About this project</h1><p class="page-subtitle">A learning-focused demonstration of academic data analysis and prediction.</p></div></section>
+<section class="panel prose-panel">
+  <h2>Problem statement</h2><p>Academic teams may use attendance, prior performance, and learning context to identify students who could benefit from additional support. This application demonstrates how a dataset can be summarized and a simple classifier evaluated for that limited purpose.</p>
+  <h2>Objectives</h2><ul><li>Summarize actual records from a provided CSV dataset.</li><li>Explore student records with search, filters, and pagination.</li><li>Train a reproducible baseline classifier and show held-out evaluation results.</li><li>Present estimates transparently and keep human judgment central.</li></ul>
+  <h2>Technology stack</h2><p>Flask, Python, Pandas, scikit-learn, joblib, HTML5, CSS3, vanilla JavaScript, and Chart.js.</p>
+  <h2>Data preparation and methodology</h2><p>The app validates the required schema, missing values, numeric ranges, categorical fields, and target labels. The training script removes exact duplicate records before splitting, reserves a fixed-seed test set, and uses a scikit-learn preprocessing pipeline with one-hot encoding for categorical features and a Random Forest classifier. <code>student_id</code>, <code>final_score</code>, and the target <code>academic_risk</code> are excluded from model inputs.</p>
+  <h2>Evaluation</h2><p>The model page reports accuracy, macro-averaged precision, recall, F1-score, a confusion matrix, and per-class results on the held-out test set. No test-set tuning is performed by the training script.</p>
+  <h2>Limitations</h2><ul><li>Synthetic labels may encode artificial rules and do not demonstrate real-world validity.</li><li>Model scores are not calibrated probabilities of academic failure.</li><li>Bias, missing context, data quality, and changes over time can affect results.</li><li>This tool must not be used by itself to make consequential decisions about students.</li><li>External validation, careful governance, and input from students and educators are needed before any real-world use.</li></ul>
+  <h2>Future improvements</h2><p>Possible extensions include external validation, probability calibration, fairness analysis, temporal evaluation, richer contextual review, and student-centered privacy and consent controls.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,87 @@
+
+{% extends "base.html" %}
+
+{% block title %}Dataset | Student Performance Analyser{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Student Dataset</h1>
+    <p>
+        Explore the student data loaded from
+        <strong>data/student_performance_dataset.csv</strong>.
+    </p>
+    <button onclick="loadDataset()">Load Dataset</button>
+    <p id="message"></p>
+</div>
+
+<div class="card" style="overflow-x:auto;">
+    <table>
+        <thead id="datasetHead"></thead>
+        <tbody id="datasetBody">
+            <tr>
+                <td>Click "Load Dataset" to display the dataset.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+async function loadDataset() {
+    const head = document.getElementById("datasetHead");
+    const body = document.getElementById("datasetBody");
+    const message = document.getElementById("message");
+
+    head.replaceChildren();
+    body.innerHTML = "<tr><td>Loading dataset...</td></tr>";
+    message.textContent = "";
+
+    try {
+        const response = await fetch("/api/dataset");
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not load the dataset.");
+        }
+
+        const rows = Array.isArray(data)
+            ? data
+            : (data.rows || data.data || data.dataset || []);
+
+        if (rows.length === 0) {
+            body.innerHTML = "<tr><td>No dataset records were returned.</td></tr>";
+            message.textContent = "Check the response from /api/dataset if your CSV contains data.";
+            return;
+        }
+
+        const columns = Object.keys(rows[0]);
+        const headerRow = document.createElement("tr");
+
+        columns.forEach(column => {
+            const th = document.createElement("th");
+            th.textContent = column;
+            headerRow.appendChild(th);
+        });
+
+        head.appendChild(headerRow);
+        body.replaceChildren();
+
+        rows.forEach(record => {
+            const tr = document.createElement("tr");
+
+            columns.forEach(column => {
+                const td = document.createElement("td");
+                td.textContent = record[column] ?? "-";
+                tr.appendChild(td);
+            });
+
+            body.appendChild(tr);
+        });
+
+        message.textContent = "Successfully loaded " + rows.length + " record(s).";
+    } catch (error) {
+        body.innerHTML = "";
+        message.textContent = "Error: " + error.message;
+    }
+}
+</script>
+{% endblock %}

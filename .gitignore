@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+models/*.joblib
+reports/*.json
+instance/*
+!instance/.gitkeep
+!models/.gitkeep
+!reports/.gitkeep
+!static/images/.gitkeep

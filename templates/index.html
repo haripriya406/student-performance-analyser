@@ -1,0 +1,34 @@
+
+{% extends "base.html" %}
+
+{% block title %}Home | Student Performance Analyser{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Student Performance Analyser</h1>
+    <p>
+        Welcome to the Student Performance Analyser.
+        This system uses student academic and lifestyle information
+        to help identify students who may be at academic risk.
+    </p>
+    <a class="button" href="{{ url_for('predict') }}">Predict Student Risk</a>
+    <a class="button" href="{{ url_for('students') }}">View Students</a>
+</div>
+
+<div class="card">
+    <h2>Project Features</h2>
+    <ul>
+        <li>Predict academic risk using a machine learning model.</li>
+        <li>View student information from the dataset.</li>
+        <li>Explore dataset details.</li>
+        <li>Review model evaluation information.</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>How It Works</h2>
+    <p>1. Student data is loaded from the CSV dataset.</p>
+    <p>2. The machine learning model analyses the available information.</p>
+    <p>3. The system predicts whether a student may be at academic risk.</p>
+</div>
+{% endblock %}

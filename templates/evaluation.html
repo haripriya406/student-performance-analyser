@@ -1,0 +1,70 @@
+
+{% extends "base.html" %}
+
+{% block title %}Model Evaluation | Student Performance Analyser{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Model Evaluation</h1>
+    <p>
+        This page displays the performance of the machine learning model
+        used to predict student academic risk.
+    </p>
+    <button onclick="loadEvaluation()">Load Evaluation Results</button>
+    <p id="message"></p>
+</div>
+
+<div class="card">
+    <h2>Evaluation Details</h2>
+    <div id="evaluationResults">
+        Click "Load Evaluation Results" to view the model results.
+    </div>
+</div>
+
+<script>
+async function loadEvaluation() {
+    const results = document.getElementById("evaluationResults");
+    const message = document.getElementById("message");
+
+    results.textContent = "Loading evaluation results...";
+    message.textContent = "";
+
+    try {
+        const response = await fetch("/api/status");
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not load evaluation results.");
+        }
+
+        results.replaceChildren();
+
+        function addDetail(label, value) {
+            const paragraph = document.createElement("p");
+            const strong = document.createElement("strong");
+            strong.textContent = label + ": ";
+            paragraph.appendChild(strong);
+            paragraph.appendChild(document.createTextNode(
+                value === undefined || value === null ? "Not available" :
+                typeof value === "object" ? JSON.stringify(value) : String(value)
+            ));
+            results.appendChild(paragraph);
+        }
+
+        Object.entries(data).forEach(([key, value]) => {
+            addDetail(
+                key.replace(/_/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()),
+                value
+            );
+        });
+
+        if (Object.keys(data).length === 0) {
+            results.textContent = "No evaluation information is available.";
+        }
+    } catch (error) {
+        results.textContent = "Could not load the results.";
+        message.textContent = "Error: " + error.message;
+    }
+}
+</script>
+{% endblock %}
