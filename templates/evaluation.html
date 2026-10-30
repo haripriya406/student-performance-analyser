@@ -1,70 +1,44 @@
-
 {% extends "base.html" %}
-
-{% block title %}Model Evaluation | Student Performance Analyser{% endblock %}
-
+{% block title %}Model evaluation | Student Performance Analyser{% endblock %}
+{% block breadcrumb %}Model evaluation{% endblock %}
 {% block content %}
-<div class="card">
-    <h1>Model Evaluation</h1>
-    <p>
-        This page displays the performance of the machine learning model
-        used to predict student academic risk.
-    </p>
-    <button onclick="loadEvaluation()">Load Evaluation Results</button>
-    <p id="message"></p>
-</div>
-
-<div class="card">
-    <h2>Evaluation Details</h2>
-    <div id="evaluationResults">
-        Click "Load Evaluation Results" to view the model results.
+<section class="page-heading"><div><p class="eyebrow">MODEL QUALITY</p><h1>Evaluation</h1><p class="page-subtitle">Metrics are calculated on a fixed-seed held-out test split.</p></div></section>
+{% if error %}<div class="notice notice-error" role="alert"><span aria-hidden="true">!</span><p>{{ error }}</p></div>{% endif %}
+{% if metrics and metrics.evaluation_available %}
+<div class="notice notice-info"><span aria-hidden="true">i</span><p>The model is evaluated on {{ metrics.testing_records }} held-out records, separate from the records used for evaluation-time fitting. The prediction model is then fitted on all {{ metrics.labelled_records }} labelled records.</p></div>
+<section class="stats-grid stats-grid-four metric-cards">
+  <article class="metric-card"><span>Accuracy</span><strong>{{ (metrics.metrics.accuracy * 100)|round(1) }}%</strong></article>
+  <article class="metric-card"><span>Macro precision</span><strong>{{ (metrics.metrics.precision_macro * 100)|round(1) }}%</strong></article>
+  <article class="metric-card"><span>Macro recall</span><strong>{{ (metrics.metrics.recall_macro * 100)|round(1) }}%</strong></article>
+  <article class="metric-card"><span>Macro F1-score</span><strong>{{ (metrics.metrics.f1_macro * 100)|round(1) }}%</strong></article>
+</section>
+<section class="charts-grid">
+  <article class="panel">
+    <div class="panel-heading"><div><h2>Confusion matrix</h2><p>Rows are actual labels; columns are predicted labels.</p></div></div>
+    <div class="matrix-wrap">
+      <span class="matrix-axis">Predicted class</span>
+      {% for row_index in range(metrics.confusion_matrix.labels|length) %}
+        {% for column_index in range(metrics.confusion_matrix.labels|length) %}
+        <div class="matrix-cell"><strong>{{ metrics.confusion_matrix['values'][row_index][column_index] }}</strong><small>Actual {{ metrics.confusion_matrix.labels[row_index] }}<br>Predicted {{ metrics.confusion_matrix.labels[column_index] }}</small></div>
+        {% endfor %}
+      {% endfor %}
     </div>
-</div>
-
-<script>
-async function loadEvaluation() {
-    const results = document.getElementById("evaluationResults");
-    const message = document.getElementById("message");
-
-    results.textContent = "Loading evaluation results...";
-    message.textContent = "";
-
-    try {
-        const response = await fetch("/api/status");
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "Could not load evaluation results.");
-        }
-
-        results.replaceChildren();
-
-        function addDetail(label, value) {
-            const paragraph = document.createElement("p");
-            const strong = document.createElement("strong");
-            strong.textContent = label + ": ";
-            paragraph.appendChild(strong);
-            paragraph.appendChild(document.createTextNode(
-                value === undefined || value === null ? "Not available" :
-                typeof value === "object" ? JSON.stringify(value) : String(value)
-            ));
-            results.appendChild(paragraph);
-        }
-
-        Object.entries(data).forEach(([key, value]) => {
-            addDetail(
-                key.replace(/_/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()),
-                value
-            );
-        });
-
-        if (Object.keys(data).length === 0) {
-            results.textContent = "No evaluation information is available.";
-        }
-    } catch (error) {
-        results.textContent = "Could not load the results.";
-        message.textContent = "Error: " + error.message;
-    }
-}
-</script>
+  </article>
+  <article class="panel">
+    <div class="panel-heading"><div><h2>Test split details</h2><p>Reproducible split with random seed {{ metrics.random_state }}.</p></div></div>
+    <div class="distribution-list"><div class="distribution-row"><span>Training records</span><strong>{{ metrics.training_records }}</strong></div><div class="distribution-row"><span>Held-out test records</span><strong>{{ metrics.testing_records }}</strong></div><div class="distribution-row"><span>Stratified split</span><strong>{{ 'Yes' if metrics.train_test_stratified else 'No' }}</strong></div></div>
+  </article>
+</section>
+<section class="panel">
+  <div class="panel-heading"><div><h2>Per-category scores</h2><p>Precision, recall, and F1 use the held-out test predictions.</p></div></div>
+  <div class="table-scroll"><table><thead><tr><th>Category</th><th>Precision</th><th>Recall</th><th>F1-score</th><th>Test records</th></tr></thead><tbody>
+    {% for label in metrics.confusion_matrix.labels %}{% set item = metrics.classification_report[label] %}<tr><td>{{ label }}</td><td>{{ (item.precision * 100)|round(1) }}%</td><td>{{ (item.recall * 100)|round(1) }}%</td><td>{{ (item['f1-score'] * 100)|round(1) }}%</td><td>{{ item.support }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<p class="data-note">{{ metrics.evaluation_note }}</p>
+{% elif metrics %}
+<section class="panel"><h2>Held-out metrics are unavailable</h2><p class="data-note">{{ metrics.evaluation_note }}</p><p class="data-note">The available labelled data is still used to fit the prediction pipeline.</p></section>
+{% else %}
+<section class="panel"><h2>Evaluation cannot be calculated</h2><p class="data-note">Add a valid dataset with both academic-risk categories and enough labelled records, then reload this page. No evaluation values have been invented.</p></section>
+{% endif %}
 {% endblock %}

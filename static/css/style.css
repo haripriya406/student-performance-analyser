@@ -194,3 +194,24 @@ code { background: #f0f3f8; border-radius: 4px; color: #44516a; padding: 2px 4px
   .chart-wrap { height: 210px; }
   .chart-wrap-wide { height: 235px; }
 }
+
+.sidebar { background: #102a43; border-right-color: #1d3d5a; }
+.brand { color: #fff; }
+.brand-light { color: #b7c8dc; }
+.nav-caption { color: #9db2c9; }
+.nav-link { color: #d3deeb; }
+.nav-link > span { color: #9db2c9; }
+.nav-link:hover { background: #1b3d5c; color: #fff; }
+.nav-link.active { background: #0f766e; color: #fff; }
+.nav-link.active > span { color: #fff; }
+.sidebar-note { background: #173651; border-color: #294a67; }
+.sidebar-note strong { color: #f3f7fc; }
+.sidebar-note p { color: #c1cfdf; }
+.stats-grid-four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+@media (max-width: 760px) {
+  .stats-grid-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .stats-grid-four { grid-template-columns: 1fr; }
+}

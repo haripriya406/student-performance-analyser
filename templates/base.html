@@ -1,122 +1,56 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Student Performance Analyser{% endblock %}</title>
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f4f7fb;
-            color: #1e293b;
-        }
-
-        nav {
-            background: #173b68;
-            padding: 18px 6%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        nav a {
-            color: white;
-            text-decoration: none;
-            margin-right: 18px;
-        }
-
-        nav .brand {
-            font-size: 21px;
-            font-weight: bold;
-        }
-
-        main {
-            max-width: 1150px;
-            margin: 35px auto;
-            padding: 0 20px;
-            min-height: 65vh;
-        }
-
-        .card {
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 3px 14px #0000000d;
-            margin-bottom: 20px;
-        }
-
-        h1, h2 {
-            color: #173b68;
-        }
-
-        button, .button {
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 11px 18px;
-            border-radius: 7px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 10px;
-            margin: 7px 0 16px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }
-
-        th, td {
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            text-align: left;
-        }
-
-        th {
-            background: #eaf1fb;
-        }
-
-        footer {
-            text-align: center;
-            padding: 22px;
-            color: #64748b;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102a43">
+  <meta name="description" content="Student performance analytics and academic-risk estimates.">
+  <title>{% block title %}Student Performance Analyser{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
 </head>
 <body>
-    <nav>
-        <a class="brand" href="{{ url_for('dashboard') }}">Student Performance Analyser</a>
-        <div>
-            <a href="{{ url_for('dashboard') }}">Home</a>
-            <a href="{{ url_for('predict') }}">Predict</a>
-            <a href="{{ url_for('students') }}">Students</a>
-            <a href="{{ url_for('evaluation') }}">Evaluation</a>
-            <a href="{{ url_for('dataset') }}">Dataset</a>
+  <div class="app-shell">
+    <aside class="sidebar" id="app-sidebar">
+      <a class="brand" href="{{ url_for('dashboard') }}">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span>Student<span class="brand-light">Lens</span></span>
+      </a>
+      <p class="nav-caption">STUDENT ANALYTICS</p>
+      <nav class="primary-nav" aria-label="Main navigation">
+        <a class="nav-link{% if request.endpoint == 'dashboard' %} active{% endif %}" href="{{ url_for('dashboard') }}" {% if request.endpoint == 'dashboard' %}aria-current="page"{% endif %}><span aria-hidden="true">⌂</span>Dashboard</a>
+        <a class="nav-link{% if request.endpoint == 'students' %} active{% endif %}" href="{{ url_for('students') }}" {% if request.endpoint == 'students' %}aria-current="page"{% endif %}><span aria-hidden="true">▤</span>Student records</a>
+        <a class="nav-link{% if request.endpoint == 'dataset' %} active{% endif %}" href="{{ url_for('dataset') }}" {% if request.endpoint == 'dataset' %}aria-current="page"{% endif %}><span aria-hidden="true">▦</span>Dataset explorer</a>
+        <a class="nav-link{% if request.endpoint == 'predict' %} active{% endif %}" href="{{ url_for('predict') }}" {% if request.endpoint == 'predict' %}aria-current="page"{% endif %}><span aria-hidden="true">◎</span>Risk prediction</a>
+        <a class="nav-link{% if request.endpoint == 'evaluation' %} active{% endif %}" href="{{ url_for('evaluation') }}" {% if request.endpoint == 'evaluation' %}aria-current="page"{% endif %}><span aria-hidden="true">▥</span>Model evaluation</a>
+        <a class="nav-link{% if request.endpoint == 'about' %} active{% endif %}" href="{{ url_for('about') }}" {% if request.endpoint == 'about' %}aria-current="page"{% endif %}><span aria-hidden="true">ⓘ</span>About</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note">
+          <span class="note-icon" aria-hidden="true">✦</span>
+          <strong>Use estimates carefully</strong>
+          <p>Predictions are learning aids, not guarantees or decisions about a student.</p>
         </div>
-    </nav>
+        <p class="nav-caption">LOGISTIC REGRESSION</p>
+      </div>
+    </aside>
 
-    <main>
+    <div class="main-column">
+      <header class="topbar">
+        <button class="menu-toggle" type="button" aria-controls="app-sidebar" aria-expanded="false" aria-label="Open navigation">☰</button>
+        <div class="topbar-context"><span class="status-dot" aria-hidden="true"></span><span>Student Performance Analyser</span><span class="context-divider">/</span><span>{% block breadcrumb %}Analytics{% endblock %}</span></div>
+        <div class="topbar-right"><span class="topbar-label">Student insights</span><span class="avatar" aria-hidden="true">SA</span></div>
+      </header>
+      <main class="page-content">
         {% block content %}{% endblock %}
-    </main>
-
-    <footer>
-        Student Performance Analyser | Academic Project
-    </footer>
+      </main>
+      <footer class="footer"><span>Student Performance Analyser</span><span>For learning and analysis only</span></footer>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

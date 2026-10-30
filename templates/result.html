@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Prediction result | Student Performance Analyser{% endblock %}
+{% block breadcrumb %}Prediction result{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">ESTIMATE COMPLETE</p><h1>Academic-risk result</h1><p class="page-subtitle">The model processed the attributes you entered.</p></div></section>
+<section class="panel result-panel">
+  <h2>Predicted category</h2>
+  <p class="result-category {{ 'at-risk' if prediction == 'At Risk' else 'not-at-risk' }}">{{ prediction }}</p>
+  <p class="data-note">This category is a model estimate, not a guarantee of academic performance. Please consider the student's context and use human review.</p>
+  {% if probabilities %}
+  <h2>Model output scores</h2>
+  <div class="probability-list">
+    {% for label, probability in probabilities.items() %}
+    <div class="probability-row"><span>{{ label }}</span><span class="probability-track"><span class="probability-fill" style="width: {{ (probability * 100)|round(1) }}%"></span></span><strong>{{ (probability * 100)|round(1) }}%</strong></div>
+    {% endfor %}
+  </div>
+  <p class="data-note">These are model output scores, not calibrated probabilities and not guarantees.</p>
+  {% endif %}
+</section>
+<section class="panel">
+  <div class="panel-heading"><div><h2>Input summary</h2><p>Final score and student ID were not used as model inputs.</p></div></div>
+  <div class="distribution-list">
+    {% for field, value in student_data.items() %}<div class="distribution-row"><span>{{ field.replace('_', ' ')|title }}</span><strong>{{ value }}</strong></div>{% endfor %}
+  </div>
+</section>
+<div class="form-actions"><a class="button button-primary" href="{{ url_for('predict') }}">Make another estimate</a><a class="button button-secondary" href="{{ url_for('dashboard') }}">Back to dashboard</a></div>
+{% endblock %}

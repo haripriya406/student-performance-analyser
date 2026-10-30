@@ -81,10 +81,14 @@ def validate_dataframe(frame: pd.DataFrame) -> pd.DataFrame:
     if cleaned["student_id"].isna().any() or cleaned["student_id"].eq("").any():
         raise DatasetValidationError("student_id cannot be empty.")
 
-    for column in CATEGORICAL_FEATURES + [TARGET_COLUMN]:
-        cleaned[column] = cleaned[column].astype("string").str.strip()
-        if cleaned[column].isna().any() or cleaned[column].eq("").any():
-            raise DatasetValidationError(f"{column} contains missing or empty values.")
+    for column in CATEGORICAL_FEATURES:
+        values = cleaned[column].astype("string").str.strip()
+        values = values.mask(values.eq(""))
+        cleaned[column] = values.astype(object).where(values.notna(), float("nan"))
+
+    labels = cleaned[TARGET_COLUMN].astype("string").str.strip()
+    labels = labels.mask(labels.eq(""))
+    cleaned[TARGET_COLUMN] = labels.astype(object).where(labels.notna(), float("nan"))
     invalid_labels = sorted(set(cleaned[TARGET_COLUMN].dropna()) - set(RISK_LABELS))
     if invalid_labels:
         raise DatasetValidationError(
@@ -96,22 +100,21 @@ def validate_dataframe(frame: pd.DataFrame) -> pd.DataFrame:
         numeric = pd.to_numeric(original, errors="coerce")
         if (original.notna() & numeric.isna()).any():
             raise DatasetValidationError(f"{column} must contain numeric values.")
-        if numeric.isna().any():
-            raise DatasetValidationError(f"{column} contains missing values.")
-        if ((numeric < minimum) | (numeric > maximum)).any():
+        present = numeric.notna()
+        if ((numeric[present] < minimum) | (numeric[present] > maximum)).any():
             raise DatasetValidationError(
                 f"{column} values must be between {minimum} and {maximum}."
             )
-        if column in INTEGER_COLUMNS and (numeric % 1 != 0).any():
+        if column in INTEGER_COLUMNS and (numeric[present] % 1 != 0).any():
             raise DatasetValidationError(f"{column} must contain whole numbers.")
-        cleaned[column] = numeric.astype(int if column in INTEGER_COLUMNS else float)
+        cleaned[column] = numeric.astype(float)
 
     return cleaned
 
 
 def read_dataset(path: Path) -> pd.DataFrame:
     if not path.is_file():
-        raise FileNotFoundError(f"Dataset file not found: {path.name}")
+        raise FileNotFoundError(f"Dataset not found: {path.name}")
     try:
         frame = pd.read_csv(path, dtype={"student_id": "string"})
     except pd.errors.EmptyDataError as error:
@@ -122,6 +125,8 @@ def read_dataset(path: Path) -> pd.DataFrame:
 
 
 def json_safe(value: Any) -> Any:
+    if pd.isna(value):
+        return None
     if hasattr(value, "item"):
         return value.item()
     return value

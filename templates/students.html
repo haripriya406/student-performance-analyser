@@ -1,89 +1,44 @@
-
 {% extends "base.html" %}
-
-{% block title %}Students | Student Performance Analyser{% endblock %}
-
+{% block title %}Student records | Student Performance Analyser{% endblock %}
+{% block breadcrumb %}Student records{% endblock %}
 {% block content %}
-<div class="card">
-    <h1>Student Records</h1>
-    <p>View student information loaded from your dataset.</p>
-    <button onclick="loadStudents()">Load Student Records</button>
-    <p id="message"></p>
-</div>
-
-<div class="card" style="overflow-x:auto;">
-    <table id="studentsTable">
-        <thead>
-            <tr>
-                <th>Student ID</th>
-                <th>Age</th>
-                <th>Gender</th>
-                <th>Study Hours/Day</th>
-                <th>Attendance (%)</th>
-                <th>Previous Score</th>
-                <th>Final Score</th>
-                <th>Academic Risk</th>
-            </tr>
-        </thead>
-        <tbody id="studentsBody">
-            <tr>
-                <td colspan="8">Click "Load Student Records" to view the data.</td>
-            </tr>
-        </tbody>
+<section class="page-heading">
+  <div><p class="eyebrow">RECORDS</p><h1>Student records</h1><p class="page-subtitle">Search by student ID and filter by the observed risk category.</p></div>
+</section>
+<section class="panel">
+  <form class="filters" method="get" action="{{ url_for('students') }}">
+    <label class="field filter-search" for="search">Student ID
+      <input id="search" name="search" type="search" value="{{ search }}" placeholder="Search student ID">
+    </label>
+    <label class="field" for="risk">Academic risk
+      <select id="risk" name="risk">
+        <option value="">All categories</option>
+        {% for label in risk_labels %}<option value="{{ label }}" {% if selected_risk == label %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="button button-primary filter-reset" type="submit">Apply filters</button>
+    <a class="button button-secondary filter-reset" href="{{ url_for('students') }}">Clear</a>
+  </form>
+  <p class="page-subtitle">{{ total }} matching record{% if total != 1 %}s{% endif %}</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Student ID</th><th>Age</th><th>Study hours / day</th><th>Attendance</th><th>Previous score</th><th>Academic risk</th></tr></thead>
+      <tbody>
+      {% for student in records %}
+        <tr><td>{{ student.student_id }}</td><td>{{ student.age|number_or_dash(0) }}</td><td>{{ student.study_hours_per_day|number_or_dash(1) }}</td><td>{{ student.attendance_percentage|number_or_dash(1) }}{% if student.attendance_percentage is not none %}%{% endif %}</td><td>{{ student.previous_score|number_or_dash(1) }}</td><td><span class="risk-badge {{ 'at-risk' if student.academic_risk == 'At Risk' else 'not-at-risk' }}">{{ student.academic_risk or 'Unlabelled' }}</span></td></tr>
+      {% else %}
+        <tr><td colspan="6" class="empty-state">No student records match your search and filters.</td></tr>
+      {% endfor %}
+      </tbody>
     </table>
-</div>
-
-<script>
-async function loadStudents() {
-    const body = document.getElementById("studentsBody");
-    const message = document.getElementById("message");
-
-    body.innerHTML = "<tr><td colspan='8'>Loading records...</td></tr>";
-    message.textContent = "";
-
-    try {
-        const response = await fetch("/api/students");
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "Could not load student records.");
-        }
-
-        const students = Array.isArray(data) ? data : (data.students || []);
-
-        if (students.length === 0) {
-            body.innerHTML = "<tr><td colspan='8'>No student records found.</td></tr>";
-            return;
-        }
-
-        body.innerHTML = "";
-
-        students.forEach(student => {
-            const row = document.createElement("tr");
-
-            [
-                student.student_id,
-                student.age,
-                student.gender,
-                student.study_hours_per_day,
-                student.attendance_percentage,
-                student.previous_score,
-                student.final_score,
-                student.academic_risk
-            ].forEach(value => {
-                const cell = document.createElement("td");
-                cell.textContent = value ?? "-";
-                row.appendChild(cell);
-            });
-
-            body.appendChild(row);
-        });
-
-        message.textContent = "Loaded " + students.length + " student record(s).";
-    } catch (error) {
-        body.innerHTML = "";
-        message.textContent = "Error: " + error.message;
-    }
-}
-</script>
+  </div>
+  <div class="table-footer">
+    <span>Showing {{ records|length }} of {{ total }} matching records · {{ per_page }} per page</span>
+    <nav class="pagination" aria-label="Student record pages">
+      {% if page > 1 %}<a class="button button-secondary button-small" href="{{ url_for('students', search=search, risk=selected_risk, page=page - 1) }}">Previous</a>{% else %}<span class="button button-secondary button-small" aria-disabled="true">Previous</span>{% endif %}
+      <span>{% if total_pages %}Page {{ page }} of {{ total_pages }}{% else %}Page 0 of 0{% endif %}</span>
+      {% if page < total_pages %}<a class="button button-secondary button-small" href="{{ url_for('students', search=search, risk=selected_risk, page=page + 1) }}">Next</a>{% else %}<span class="button button-secondary button-small" aria-disabled="true">Next</span>{% endif %}
+    </nav>
+  </div>
+</section>
 {% endblock %}

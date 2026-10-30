@@ -1,87 +1,46 @@
-
 {% extends "base.html" %}
-
-{% block title %}Dataset | Student Performance Analyser{% endblock %}
-
+{% block title %}Dataset explorer | Student Performance Analyser{% endblock %}
+{% block breadcrumb %}Dataset explorer{% endblock %}
 {% block content %}
-<div class="card">
-    <h1>Student Dataset</h1>
-    <p>
-        Explore the student data loaded from
-        <strong>data/student_performance_dataset.csv</strong>.
-    </p>
-    <button onclick="loadDataset()">Load Dataset</button>
-    <p id="message"></p>
-</div>
+<section class="page-heading"><div><p class="eyebrow">DATA</p><h1>Dataset explorer</h1><p class="page-subtitle">Inspect columns, missing values, and a preview of the active CSV.</p></div></section>
 
-<div class="card" style="overflow-x:auto;">
-    <table>
-        <thead id="datasetHead"></thead>
-        <tbody id="datasetBody">
-            <tr>
-                <td>Click "Load Dataset" to display the dataset.</td>
-            </tr>
-        </tbody>
-    </table>
-</div>
+<section id="dataset-content">
+  <section class="stats-grid stats-grid-three">
+    <article class="stat-card"><div class="stat-top"><span>Total records</span><span class="stat-icon blue" aria-hidden="true">▤</span></div><strong class="stat-value" id="dataset-rows">{{ info.rows }}</strong><span class="stat-caption">Rows in {{ info.filename }}</span></article>
+    <article class="stat-card"><div class="stat-top"><span>Columns</span><span class="stat-icon teal" aria-hidden="true">▦</span></div><strong class="stat-value" id="dataset-columns">{{ info.columns }}</strong><span class="stat-caption">Fields in the dataset</span></article>
+    <article class="stat-card"><div class="stat-top"><span>Exact duplicate rows</span><span class="stat-icon violet" aria-hidden="true">⧉</span></div><strong class="stat-value" id="dataset-duplicates">{{ info.duplicate_records }}</strong><span class="stat-caption">Counted from the active CSV</span></article>
+  </section>
+  <p class="data-note">Active file: <strong id="dataset-filename">{{ info.filename }}</strong>. The original dataset file is preserved when a replacement is uploaded.</p>
+  <section class="panel">
+    <div class="panel-heading"><div><h2>Academic-risk labels</h2><p>Observed category counts; missing labels are not included.</p></div></div>
+    <div class="distribution-list" id="dataset-distribution">
+      {% for label, count in info.class_distribution.items() %}<div class="distribution-row"><span>{{ label }}</span><strong>{{ count }} records</strong></div>{% endfor %}
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-heading"><div><h2>Dataset columns</h2><p>Missing-value counts are shown for every field.</p></div></div>
+    <div class="table-scroll"><table><thead><tr><th>Column</th><th>Description</th><th>Missing values</th></tr></thead>
+      <tbody id="dataset-columns-body">{% for column in columns %}<tr><td><code>{{ column }}</code></td><td>{{ info.column_descriptions[column] }}</td><td>{{ info.missing_values[column] }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  <section class="panel">
+    <div class="panel-heading"><div><h2>First 10 records</h2><p>Missing cells are displayed as N/A.</p></div></div>
+    <div class="table-scroll"><table><thead><tr>{% for column in columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for record in preview %}<tr>{% for column in columns %}<td>{{ record[column] if record[column] is not none else 'N/A' }}</td>{% endfor %}</tr>{% else %}<tr><td class="empty-state" colspan="{{ columns|length }}">The dataset has no records.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+</section>
 
-<script>
-async function loadDataset() {
-    const head = document.getElementById("datasetHead");
-    const body = document.getElementById("datasetBody");
-    const message = document.getElementById("message");
-
-    head.replaceChildren();
-    body.innerHTML = "<tr><td>Loading dataset...</td></tr>";
-    message.textContent = "";
-
-    try {
-        const response = await fetch("/api/dataset");
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "Could not load the dataset.");
-        }
-
-        const rows = Array.isArray(data)
-            ? data
-            : (data.rows || data.data || data.dataset || []);
-
-        if (rows.length === 0) {
-            body.innerHTML = "<tr><td>No dataset records were returned.</td></tr>";
-            message.textContent = "Check the response from /api/dataset if your CSV contains data.";
-            return;
-        }
-
-        const columns = Object.keys(rows[0]);
-        const headerRow = document.createElement("tr");
-
-        columns.forEach(column => {
-            const th = document.createElement("th");
-            th.textContent = column;
-            headerRow.appendChild(th);
-        });
-
-        head.appendChild(headerRow);
-        body.replaceChildren();
-
-        rows.forEach(record => {
-            const tr = document.createElement("tr");
-
-            columns.forEach(column => {
-                const td = document.createElement("td");
-                td.textContent = record[column] ?? "-";
-                tr.appendChild(td);
-            });
-
-            body.appendChild(tr);
-        });
-
-        message.textContent = "Successfully loaded " + rows.length + " record(s).";
-    } catch (error) {
-        body.innerHTML = "";
-        message.textContent = "Error: " + error.message;
-    }
-}
-</script>
+<section class="panel upload-panel">
+  <div class="panel-heading"><div><h2>Use a replacement dataset</h2><p>Upload a CSV with the required columns. The original file is never overwritten.</p></div></div>
+  <p id="dataset-error" class="notice notice-error is-hidden" role="alert"></p>
+  <form id="upload-form" action="{{ url_for('api_upload_dataset') }}" method="post" enctype="multipart/form-data">
+    <label class="field" for="dataset-file">CSV file<input id="dataset-file" name="file" type="file" accept=".csv,text/csv" required><small>Maximum upload size: 10 MB.</small></label>
+    <label class="checkbox-field"><input name="confirm_replace" type="checkbox" value="true" required><span>I confirm that this file should become the active dataset for this app.</span></label>
+    <button class="button button-primary" id="upload-submit" type="submit">Validate and use dataset</button>
+  </form>
+  <p id="upload-status" class="notice is-hidden" role="status"></p>
+  <p class="data-note">Changing the active dataset does not retrain the saved model. The app retrains from the active dataset when you open prediction or evaluation.</p>
+</section>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/dataset-upload.js') }}" defer></script>{% endblock %}

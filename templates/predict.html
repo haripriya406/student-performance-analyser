@@ -1,112 +1,27 @@
-
 {% extends "base.html" %}
-
-{% block title %}Predict | Student Performance Analyser{% endblock %}
-
+{% block title %}Risk prediction | Student Performance Analyser{% endblock %}
+{% block breadcrumb %}Risk prediction{% endblock %}
 {% block content %}
-<div class="card">
-    <h1>Student Academic Risk Prediction</h1>
-    <p>Enter the student's details to predict their academic risk.</p>
-
-    <form id="predictionForm">
-        <label>Age</label>
-        <input type="number" name="age" min="10" max="100" value="17" required>
-
-        <label>Gender</label>
-        <select name="gender" required>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-        </select>
-
-        <label>Study Hours Per Day</label>
-        <input type="number" name="study_hours_per_day" min="0" max="24" step="0.5" value="3" required>
-
-        <label>Attendance Percentage</label>
-        <input type="number" name="attendance_percentage" min="0" max="100" value="80" required>
-
-        <label>Previous Score</label>
-        <input type="number" name="previous_score" min="0" max="100" value="60" required>
-
-        <label>Assignments Completed (out of 10)</label>
-        <input type="number" name="assignments_completed_out_of_10" min="0" max="10" value="7" required>
-
-        <label>Sleep Hours Per Day</label>
-        <input type="number" name="sleep_hours_per_day" min="0" max="24" step="0.5" value="7" required>
-
-        <label>Internet Access</label>
-        <select name="internet_access" required>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-        </select>
-
-        <label>Parental Support</label>
-        <select name="parental_support" required>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
-        </select>
-
-        <label>Extracurricular Hours Per Week</label>
-        <input type="number" name="extracurricular_hours_per_week" min="0" max="168" step="0.5" value="4" required>
-
-        <label>Family Income Level</label>
-        <select name="family_income_level" required>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-        </select>
-
-        <button type="submit">Predict Academic Risk</button>
-    </form>
-
-    <div id="result" class="card" style="display:none; margin-top:20px;">
-        <h2>Prediction Result</h2>
-        <p id="predictionText"></p>
+<section class="page-heading"><div><p class="eyebrow">MODEL ESTIMATE</p><h1>Predict academic risk</h1><p class="page-subtitle">Enter student attributes to get a Logistic Regression estimate.</p></div></section>
+{% if errors %}<div class="notice notice-error" role="alert"><span aria-hidden="true">!</span><div><strong>Please review these fields:</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div></div>{% endif %}
+<div class="notice notice-warning"><span aria-hidden="true">i</span><p>This is an educational estimate based on dataset patterns. It is not a guarantee or a substitute for human review.</p></div>
+<section class="panel form-panel">
+  <div class="panel-heading"><div><h2>Student information</h2><p>Fields with an asterisk are required.</p></div><span class="required-note">Model: Logistic Regression</span></div>
+  <form action="{{ url_for('result') }}" method="post">
+    <div class="form-grid">
+      <label class="field" for="age">Age <b>*</b><input id="age" name="age" type="number" min="10" max="100" step="1" value="{{ values.get('age', '') }}" required></label>
+      <label class="field" for="gender">Gender <b>*</b><select id="gender" name="gender" required><option value="">Select a category</option>{% for option in categories.gender %}<option value="{{ option }}" {% if values.get('gender') == option %}selected{% endif %}>{{ option }}</option>{% endfor %}{% if values.get('gender') and values.get('gender') not in categories.gender %}<option value="{{ values.get('gender') }}" selected>{{ values.get('gender') }}</option>{% endif %}</select></label>
+      <label class="field" for="study_hours_per_day">Study hours per day <b>*</b><input id="study_hours_per_day" name="study_hours_per_day" type="number" min="0" max="24" step="0.1" value="{{ values.get('study_hours_per_day', '') }}" required></label>
+      <label class="field" for="attendance_percentage">Attendance percentage <b>*</b><input id="attendance_percentage" name="attendance_percentage" type="number" min="0" max="100" step="0.1" value="{{ values.get('attendance_percentage', '') }}" required></label>
+      <label class="field" for="previous_score">Previous score <b>*</b><input id="previous_score" name="previous_score" type="number" min="0" max="100" step="0.1" value="{{ values.get('previous_score', '') }}" required></label>
+      <label class="field" for="assignments_completed_out_of_10">Assignments completed (out of 10) <b>*</b><input id="assignments_completed_out_of_10" name="assignments_completed_out_of_10" type="number" min="0" max="10" step="1" value="{{ values.get('assignments_completed_out_of_10', '') }}" required></label>
+      <label class="field" for="sleep_hours_per_day">Sleep hours per day <b>*</b><input id="sleep_hours_per_day" name="sleep_hours_per_day" type="number" min="0" max="24" step="0.1" value="{{ values.get('sleep_hours_per_day', '') }}" required></label>
+      <label class="field" for="internet_access">Internet access <b>*</b><select id="internet_access" name="internet_access" required><option value="">Select a category</option>{% for option in categories.internet_access %}<option value="{{ option }}" {% if values.get('internet_access') == option %}selected{% endif %}>{{ option }}</option>{% endfor %}{% if values.get('internet_access') and values.get('internet_access') not in categories.internet_access %}<option value="{{ values.get('internet_access') }}" selected>{{ values.get('internet_access') }}</option>{% endif %}</select></label>
+      <label class="field" for="parental_support">Parental support <b>*</b><select id="parental_support" name="parental_support" required><option value="">Select a category</option>{% for option in categories.parental_support %}<option value="{{ option }}" {% if values.get('parental_support') == option %}selected{% endif %}>{{ option }}</option>{% endfor %}{% if values.get('parental_support') and values.get('parental_support') not in categories.parental_support %}<option value="{{ values.get('parental_support') }}" selected>{{ values.get('parental_support') }}</option>{% endif %}</select></label>
+      <label class="field" for="extracurricular_hours_per_week">Extracurricular hours per week <b>*</b><input id="extracurricular_hours_per_week" name="extracurricular_hours_per_week" type="number" min="0" max="168" step="0.1" value="{{ values.get('extracurricular_hours_per_week', '') }}" required></label>
+      <label class="field" for="family_income_level">Family income level <b>*</b><select id="family_income_level" name="family_income_level" required><option value="">Select a category</option>{% for option in categories.family_income_level %}<option value="{{ option }}" {% if values.get('family_income_level') == option %}selected{% endif %}>{{ option }}</option>{% endfor %}{% if values.get('family_income_level') and values.get('family_income_level') not in categories.family_income_level %}<option value="{{ values.get('family_income_level') }}" selected>{{ values.get('family_income_level') }}</option>{% endif %}</select></label>
     </div>
-
-    <p id="errorMessage" style="color:#dc2626;"></p>
-</div>
-
-<script>
-document.getElementById("predictionForm").addEventListener("submit", async function(event) {
-    event.preventDefault();
-
-    const formData = new FormData(this);
-    const student = {};
-
-    formData.forEach((value, key) => {
-        student[key] = value;
-    });
-
-    const errorMessage = document.getElementById("errorMessage");
-    const result = document.getElementById("result");
-    const predictionText = document.getElementById("predictionText");
-
-    errorMessage.textContent = "";
-    result.style.display = "none";
-
-    try {
-        const response = await fetch("/api/predict", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(student)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "Prediction failed.");
-        }
-
-        predictionText.textContent =
-            "Predicted academic risk: " +
-            (data.prediction ?? data.academic_risk ?? JSON.stringify(data));
-
-        result.style.display = "block";
-    } catch (error) {
-        errorMessage.textContent = "Error: " + error.message;
-    }
-});
-</script>
+    <div class="form-actions"><button class="button button-primary" type="submit">Get estimate <span aria-hidden="true">→</span></button><span class="form-hint">The model excludes student ID and final score.</span></div>
+  </form>
+</section>
 {% endblock %}
