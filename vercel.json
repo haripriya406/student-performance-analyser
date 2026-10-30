@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app.py": {
+      "includeFiles": "{data/student_performance_dataset.csv,models/student_performance_model.joblib,reports/model_metrics.json,templates/**,static/**}"
+    }
+  }
+}

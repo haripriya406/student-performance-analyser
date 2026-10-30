@@ -1,9 +1,16 @@
 .venv/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
 __pycache__/
 *.py[cod]
 .pytest_cache/
 models/*.joblib
+!models/student_performance_model.joblib
 reports/*.json
+!reports/model_metrics.json
 instance/*
 !instance/.gitkeep
 !models/.gitkeep

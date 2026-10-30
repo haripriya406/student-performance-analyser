@@ -1,6 +1,8 @@
 import io
+import json
 import math
 import os
+import pickle
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -21,9 +23,6 @@ from data_utils import (
     read_dataset,
     validate_dataframe,
 )
-from train_model import train
-
-
 PROJECT_ROOT = Path(__file__).resolve().parent
 RECORDS_PER_PAGE = 20
 MAX_RECORDS_PER_PAGE = 100
@@ -43,6 +42,10 @@ COLUMN_DESCRIPTIONS = {
     "final_score": "Final score (excluded from model inputs)",
     "academic_risk": "Observed academic-risk category",
 }
+
+
+class ModelArtifactError(RuntimeError):
+    """Raised when a packaged model or evaluation report cannot be read."""
 
 
 def _records(frame: pd.DataFrame) -> list[dict[str, Any]]:
@@ -120,8 +123,12 @@ def _dataset_info(frame: pd.DataFrame, path: Path) -> dict[str, Any]:
         },
         "categories": _category_values(frame),
         "upload_behavior": (
-            "A confirmed valid upload becomes the active dataset for analytics. "
-            "It does not replace the original CSV or automatically retrain the model."
+            "On Vercel, an uploaded dataset is stored temporarily in /tmp and may not "
+            "persist between function instances. It does not replace the packaged CSV "
+            "or automatically retrain the packaged model."
+            if os.environ.get("VERCEL")
+            else "A confirmed valid upload becomes the active dataset for analytics. "
+            "It does not replace the original CSV or automatically retrain the packaged model."
         ),
     }
 
@@ -183,15 +190,25 @@ def _validate_prediction(data: dict[str, Any]) -> tuple[dict[str, Any], list[str
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app = Flask(__name__)
+    configured_dataset = Path(
+        os.environ.get(
+            "STUDENT_DATASET_PATH",
+            PROJECT_ROOT / "data" / "student_performance_dataset.csv",
+        )
+    )
+    if not configured_dataset.is_absolute():
+        configured_dataset = PROJECT_ROOT / configured_dataset
+    upload_dataset_path = (
+        Path(os.environ.get("TMPDIR", "/tmp"))
+        / "student-performance-analyser"
+        / "replacement_dataset.csv"
+        if os.environ.get("VERCEL")
+        else PROJECT_ROOT / "instance" / "replacement_dataset.csv"
+    )
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("FLASK_SECRET_KEY", "local-student-analyser"),
-        DATASET_PATH=Path(
-            os.environ.get(
-                "STUDENT_DATASET_PATH",
-                PROJECT_ROOT / "data" / "student_performance_dataset.csv",
-            )
-        ),
-        UPLOAD_DATASET_PATH=PROJECT_ROOT / "instance" / "replacement_dataset.csv",
+        DATASET_PATH=configured_dataset,
+        UPLOAD_DATASET_PATH=upload_dataset_path,
         MODEL_PATH=PROJECT_ROOT / "models" / "student_performance_model.joblib",
         METRICS_PATH=PROJECT_ROOT / "reports" / "model_metrics.json",
         MAX_CONTENT_LENGTH=10 * 1024 * 1024,
@@ -215,27 +232,77 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     def load_active_dataset() -> pd.DataFrame:
         return read_dataset(active_dataset_path())
 
-    def model_bundle() -> tuple[Any, dict[str, Any]]:
-        path = active_dataset_path()
-        file_stat = path.stat()
+    def model_bundle() -> Any:
+        path = Path(app.config["MODEL_PATH"])
+        if not path.is_absolute():
+            path = PROJECT_ROOT / path
+        try:
+            file_stat = path.stat()
+        except FileNotFoundError as error:
+            raise ModelArtifactError(
+                f"Trained model artifact not found at {path}. Run "
+                "'python train_model.py' locally and include the generated model "
+                "in the deployment."
+            ) from error
+        except OSError as error:
+            raise ModelArtifactError(f"Cannot access trained model artifact {path}: {error}") from error
         cache_key = (str(path.resolve()), file_stat.st_mtime_ns, file_stat.st_size)
         cache: dict[Any, Any] = app.extensions["student_model_cache"]
         if cache_key not in cache:
-            metrics = train(
-                path,
-                Path(app.config["MODEL_PATH"]),
-                Path(app.config["METRICS_PATH"]),
-            )
-            model = joblib.load(Path(app.config["MODEL_PATH"]))
-            cache.clear()
-            cache[cache_key] = (model, metrics)
+            try:
+                model = joblib.load(path)
+            except (
+                OSError,
+                EOFError,
+                ValueError,
+                ImportError,
+                pickle.UnpicklingError,
+                AttributeError,
+                KeyError,
+                TypeError,
+            ) as error:
+                raise ModelArtifactError(
+                    f"Cannot load trained model artifact {path}: {error}"
+                ) from error
+            cache[cache_key] = model
         return cache[cache_key]
+
+    def load_model_metrics() -> dict[str, Any]:
+        path = Path(app.config["METRICS_PATH"])
+        if not path.is_absolute():
+            path = PROJECT_ROOT / path
+        try:
+            with path.open(encoding="utf-8") as metrics_file:
+                metrics = json.load(metrics_file)
+        except FileNotFoundError as error:
+            raise ModelArtifactError(
+                f"Evaluation report not found at {path}. Run "
+                "'python train_model.py' locally and include the generated report "
+                "in the deployment."
+            ) from error
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise ModelArtifactError(
+                f"Cannot load evaluation report {path}: {error}"
+            ) from error
+        if not isinstance(metrics, dict):
+            raise ModelArtifactError(f"Evaluation report {path} must contain a JSON object.")
+        return metrics
 
     def html_dataset_error(error: Exception, status: int = 503):
         return (
             render_template(
                 "error.html",
                 status="Dataset unavailable",
+                message=str(error),
+            ),
+            status,
+        )
+
+    def html_model_error(error: ModelArtifactError, status: int = 503):
+        return (
+            render_template(
+                "error.html",
+                status="Model unavailable",
                 message=str(error),
             ),
             status,
@@ -347,9 +414,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 400,
             )
         try:
-            model, _ = model_bundle()
-        except (DatasetValidationError, FileNotFoundError, OSError, ValueError) as error:
-            return html_dataset_error(error)
+            model = model_bundle()
+        except ModelArtifactError as error:
+            return html_model_error(error)
         input_frame = pd.DataFrame([student_data])
         prediction = str(model.predict(input_frame)[0])
         probabilities = {
@@ -369,8 +436,8 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     @app.route("/evaluation")
     def evaluation():
         try:
-            _, metrics = model_bundle()
-        except (DatasetValidationError, FileNotFoundError, OSError, ValueError) as error:
+            metrics = load_model_metrics()
+        except ModelArtifactError as error:
             return render_template(
                 "evaluation.html",
                 metrics=None,
@@ -490,8 +557,8 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if errors:
             return jsonify({"error": " ".join(errors)}), 400
         try:
-            model, metrics = model_bundle()
-        except (DatasetValidationError, FileNotFoundError, OSError, ValueError) as error:
+            model = model_bundle()
+        except ModelArtifactError as error:
             return jsonify({"error": str(error)}), 503
         input_frame = pd.DataFrame([student_data])
         prediction = str(model.predict(input_frame)[0])
@@ -510,7 +577,6 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                     "This is a model estimate for learning and analysis, not a guarantee or "
                     "a substitute for human review."
                 ),
-                "evaluation_accuracy": metrics["metrics"]["accuracy"],
             }
         )
 
@@ -518,8 +584,8 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     @app.get("/api/status")
     def api_model_metrics():
         try:
-            _, metrics = model_bundle()
-        except (DatasetValidationError, FileNotFoundError, OSError, ValueError) as error:
+            metrics = load_model_metrics()
+        except ModelArtifactError as error:
             return jsonify({"error": str(error)}), 503
         return jsonify(metrics)
 
@@ -561,7 +627,6 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             if temporary_path and temporary_path.exists():
                 temporary_path.unlink()
             return jsonify({"error": f"The dataset could not be saved: {error}"}), 500
-        app.extensions["student_model_cache"].clear()
         return jsonify(
             {
                 "message": "Dataset validated and activated.",

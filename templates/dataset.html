@@ -40,7 +40,7 @@
     <button class="button button-primary" id="upload-submit" type="submit">Validate and use dataset</button>
   </form>
   <p id="upload-status" class="notice is-hidden" role="status"></p>
-  <p class="data-note">Changing the active dataset does not retrain the saved model. The app retrains from the active dataset when you open prediction or evaluation.</p>
+  <p class="data-note">{{ info.upload_behavior }}</p>
 </section>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/dataset-upload.js') }}" defer></script>{% endblock %}

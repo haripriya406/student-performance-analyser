@@ -1,8 +1,10 @@
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -124,6 +126,7 @@ class StudentPerformanceAppTests(unittest.TestCase):
         train(self.dataset_path, self.model_path, self.metrics_path)
         self.assertTrue(self.model_path.is_file())
         self.assertTrue(self.metrics_path.is_file())
+        saved_model = self.model_path.read_bytes()
         metrics = json.loads(self.metrics_path.read_text(encoding="utf-8"))
         self.assertEqual(metrics["training_records"] + metrics["testing_records"], 40)
         self.assertNotIn("final_score", metrics["prediction_features"])
@@ -136,6 +139,31 @@ class StudentPerformanceAppTests(unittest.TestCase):
         self.assertIn(body["prediction"], ("At Risk", "Not At Risk"))
         self.assertIn("class_probabilities", body)
         self.assertIn("not calibrated", body["probability_notice"])
+        self.assertEqual(self.model_path.read_bytes(), saved_model)
+
+    def test_missing_packaged_model_reports_model_error_without_training(self):
+        record = sample_frame(1).iloc[0].to_dict()
+        prediction = {field: record[field] for field in PREDICTION_FEATURES}
+
+        response = self.client.post("/api/predict", json=prediction)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("Trained model artifact not found", response.get_json()["error"])
+        self.assertFalse(self.model_path.exists())
+
+    def test_vercel_uploads_use_temporary_storage(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with patch.dict(
+                os.environ,
+                {"VERCEL": "1", "TMPDIR": temporary_directory},
+            ):
+                vercel_app = create_app({"TESTING": True})
+
+        upload_path = Path(vercel_app.config["UPLOAD_DATASET_PATH"])
+        self.assertEqual(
+            upload_path,
+            Path(temporary_directory) / "student-performance-analyser" / "replacement_dataset.csv",
+        )
 
     def test_prediction_rejects_extra_and_out_of_range_fields(self):
         response = self.client.post("/api/predict", json={"age": 14, "unexpected": True})
